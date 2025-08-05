@@ -43,6 +43,7 @@ async function connectToWhatsApp() {
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect.error instanceof Boom) && lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut;
       console.log('Koneksi terputus. Menyambung ulang:', shouldReconnect);
+      console.log('Alasan terputus:', lastDisconnect.error.output); // Log ini sangat membantu!
       if (shouldReconnect) {
         connectToWhatsApp();
       }
@@ -154,33 +155,11 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
-app.post('/send-image', async (req, res) => {
-  const { jid, caption, image_url } = req.body;
-
-  if (!sock || !sock.user) {
-    return res.status(400).json({ success: false, message: 'Bot belum terhubung atau QR belum dipindai.' });
-  }
-
-  if (!jid || !image_url) {
-    return res.status(400).json({ success: false, message: 'Harap sediakan jid dan image_url.' });
-  }
-
-  try {
-    await sock.sendMessage(jid, {
-      image: { url: image_url },
-      caption: caption || ''
-    });
-    res.json({ success: true, message: 'Gambar berhasil dikirim.' });
-  } catch (error) {
-    console.error('Gagal mengirim gambar:', error);
-    res.status(500).json({ success: false, message: 'Gagal mengirim gambar.', error: error.message });
-  }
-});
-
+// Endpoint baru untuk mengirim gambar dari file lokal
 app.post('/send-local-image', async (req, res) => {
   const { jid, caption, file_path } = req.body;
 
-  // Log untuk memastikan permintaan POST diterima
+  // --- LOG UNTUK DEBUGGING ---
   console.log(`[send-local-image] Permintaan POST diterima.`);
   console.log(`[send-local-image] Data yang diterima: JID: ${jid}, File Path: ${file_path}`);
 
@@ -194,8 +173,10 @@ app.post('/send-local-image', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Harap sediakan jid dan file_path.' });
   }
 
-  // Path ini menunjuk ke direktori yang benar di server bot Anda
-  const fullPath = path.join(__dirname, '..', '..', 'www', 'Kumbara-Store', 'storage', 'app', 'public', file_path);
+  // Gunakan path absolut yang Anda berikan
+  const base_path = '/home/kwarranc/kumbara.kwarrancibarusah.my.id/storage/app/public';
+  const fullPath = path.join(base_path, file_path);
+
   console.log(`[send-local-image] Mencari file di path: ${fullPath}`);
 
   if (!fs.existsSync(fullPath)) {
